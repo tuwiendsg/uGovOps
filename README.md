@@ -1,4 +1,4 @@
-The rtGovOps Framework 
+The uGovOps Framework 
 ======
 The uGovOps is a runtime framework for dynamic, on-demand governance of elastic IoT cloud systems under uncertainty.
 Generally, uGovOps provides a policy language and runtime mechanisms to enable developing and executing *Governance Strategies* in IoT cloud systems under presence of uncertainty. For more information please visit [uGovOps Wiki][2].
