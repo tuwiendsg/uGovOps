@@ -81,3 +81,9 @@ Demo-applications/ARMv5/sample-server/.settings/
 ElasticityController/rSYBL-local-service-pom/rSYBL-local-service/src/resources/config.properties
 
 ElasticityController/rSYBL-control-service-pom/rSYBL-analysis-engine/nb-configuration.xml
+
+ElasticityController/eOMP/ElasticityOperationsManagementPlatform/lib/unknown/binary/spring-web-4.0.1.RELEASE/SNAPSHOT/spring-web-4.0.1.RELEASE-SNAPSHOT.jar
+
+ElasticityController/eOMP/ElasticityOperationsManagementPlatform/src/main/resources/images/login.ico
+
+ElasticityController/eOMP/ElasticityOperationsManagementPlatform/src/main/resources/images/login.png
