@@ -636,26 +636,8 @@ public class ElasticityCapabilityEnforcement {
                 }
 
             }
-            //SYBLDirectivesEnforcementLogger.logger.info("Enforcing primitive success="+res);
             return res;
-//			switch (actionName) {
-//			case "scaleout":
-//				SYBLDirectivesEnforcementLogger.logger.info("Calling Scale out from planning ");
-//
-//				enforcementAPI.scaleout(target, node);
-//				break;
-//			case "scalein":
-//				SYBLDirectivesEnforcementLogger.logger.info("Calling Scale in from planning ");
-//
-//				enforcementAPI.scalein(target, node);
-//				break;
-//			default:
-//				if (target.equalsIgnoreCase("")) {
-//					enforcementAPI.enforceAction(target, actionName, node);
-//				}
-//
-//				break;
-//			}
+
         }
     }
 }
