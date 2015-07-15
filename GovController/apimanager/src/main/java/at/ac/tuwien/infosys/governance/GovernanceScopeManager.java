@@ -2,12 +2,13 @@ package at.ac.tuwien.infosys.governance;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.json.JsonParserFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -23,15 +24,15 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.AsyncRestTemplate;
 import org.springframework.web.client.RestTemplate;
 
+import at.ac.tuwien.infosys.RoughScopeManager;
+import at.ac.tuwien.infosys.RoughScopeManager.Block;
 import at.ac.tuwien.infosys.governance.isolatedactuation.ProcessCapabilityInvocation;
-import at.ac.tuwien.infosys.governance.isolatedactuation.ScopeCapabilityInvocation;
 import at.ac.tuwien.infosys.model.DefaultMappingModel;
+import at.ac.tuwien.infosys.model.uncertain.Device;
 import at.ac.tuwien.infosys.proxy.ProcessContext;
 import at.ac.tuwien.infosys.proxy.ProcessContext.Context;
 import at.ac.tuwien.infosys.store.model.DeviceDTO;
 import at.ac.tuwien.infosys.store.model.DevicesDTO;
-
-import com.netflix.config.ConfigurationManager;
 
 @RestController
 @RequestMapping("/governanceScope")
@@ -49,14 +50,18 @@ public class GovernanceScopeManager {
 	volatile long endTS = 0;
 
 	@RequestMapping(value = "/setProcessProps/{procId}", method = RequestMethod.POST, consumes = "application/json")
-	public ResponseEntity<String> setInstanceProperties(@PathVariable String procId, @RequestBody String propertiesJson){
-		
-		LOGGER.info("Received properties for process "+ procId+"\n"+propertiesJson);
-		this.processContext.registerIfAbsent(procId).setProperties(propertiesJson);
+	public ResponseEntity<String> setInstanceProperties(
+			@PathVariable String procId, @RequestBody String propertiesJson) {
+
+		LOGGER.info("Received properties for process " + procId + "\n"
+				+ propertiesJson);
+		this.processContext.registerIfAbsent(procId).setProperties(
+				propertiesJson);
 		this.processContext.registerIfAbsent(procId).refreshConfig();
-		return new ResponseEntity<String>("Sucessfully updated configuration",HttpStatus.OK);
+		return new ResponseEntity<String>("Sucessfully updated configuration",
+				HttpStatus.OK);
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	@RequestMapping(value = "/globalScope", method = RequestMethod.GET)
 	public ResponseEntity<DevicesDTO> getGlobalScope() {
@@ -86,72 +91,68 @@ public class GovernanceScopeManager {
 		return new ResponseEntity<DevicesDTO>(devices, HttpStatus.OK);
 	}
 
-	//TODO: Change this to post - scope=query - uncertainty info will be passed as Json in the body
-	@RequestMapping(value = "/invokeScope/{procId}/{scope}/{capaId}/{method}", method = RequestMethod.GET)
+	// TODO: Change this to post - scope=query - uncertainty info will be passed
+	// as Json in the body
+	@RequestMapping(value = "/invokeScope/{procId}/{query}/{capaId}/{method}", method = RequestMethod.POST, consumes = "application/json")
 	public ResponseEntity<String> invokeCapabilityOnScope(
-			@PathVariable String procId,
-			@PathVariable String scope, 
-			@PathVariable String capaId,
-			@PathVariable String method,
-			@RequestParam(value = "args", required = false) String args) {
+			@PathVariable String procId, @PathVariable String query,
+			@PathVariable String capaId, @PathVariable String method,
+			@RequestParam(value = "args", required = false) String args,
+			@RequestBody String uncertaintiyPropsJson) {
 
-		long startTS = System.currentTimeMillis();
+		// List<DeviceDTO> governanceScope = devices
+		// .stream()
+		// .filter(d -> d.getMeta().containsKey(scopeMeta[0])
+		// && d.getMeta().get(scopeMeta[0]).equals(scopeMeta[1]))
+		// .collect(Collectors.toList());
 
-		LOGGER.info("Invoked Mapper on scope : " + scope);
-		List<DeviceDTO> devices = getGlobalScope().getBody().getDevices();
-		LOGGER.info("Found so many devices: " + devices.size());
-		String[] scopeMeta = scope.split("=");
-		LOGGER.info("Scope key=" + scopeMeta[0] + ", scope value="
-				+ scopeMeta[1]);
+		RoughScopeManager rgsm = new RoughScopeManager();
+		List<DeviceDTO> globalScope =  getGlobalScope().getBody().getDevices();
+		
+		Map<String, Object> propertiesMap = JsonParserFactory.getJsonParser().parseMap(uncertaintiyPropsJson);
+		String replacement = (((String) propertiesMap.getOrDefault("missing_data","")));
+		String selectionStrategy = (((String) propertiesMap.getOrDefault("selection_strategy","")));
+		String attrs = (((String) propertiesMap.getOrDefault("attributes","")));
+		
+		List<DeviceDTO> targetScope = rgsm
+				.getDeviceDTOsForORQuery(globalScope, query);
+		List<DeviceDTO> devicesNoMissing = rgsm.prepareData(targetScope,
+				replacement);
+		Map<Block, List<DeviceDTO>> blocks = rgsm.makeBlocks(devicesNoMissing);
+		Map<Block, List<DeviceDTO>> processedBblocks = rgsm.handleSpecialValues(
+				blocks, devicesNoMissing);
+		List<String> attributes = new ArrayList<String>();
+		attributes.add("owner");
+		attributes.add("location");
+		attributes.add("type");
+		Set<DeviceDTO> governanceScope = null;
+		if ("pessimistic".equals(selectionStrategy)) {
+			governanceScope = rgsm.buildLowerApproximationOptimized(
+					targetScope, globalScope, attributes, processedBblocks);
+		}else{
+			governanceScope = rgsm.buildUpperApproximation(targetScope, globalScope,attributes, processedBblocks);
+		}
 
-		List<DeviceDTO> governanceScope = devices
-				.stream()
-				.filter(d -> d.getMeta().containsKey(scopeMeta[0])
-						&& d.getMeta().get(scopeMeta[0]).equals(scopeMeta[1]))
-				.collect(Collectors.toList());
-
-		LOGGER.info("Governance scope includes " + governanceScope.size()
-				+ "! " + governanceScope);
-
-		String arguments = (args != null && !args.isEmpty()) ? "?args=" + args
-				: "";
-		// Async is executed in its own thread. How to return the result to
-		// client?
-		long beforeDeviceInvoceation = System.currentTimeMillis();
 		String response = "Invoking " + governanceScope.size()
 				+ " devices ...<br/><br/>";
-
 		List<Future<ResponseEntity<String>>> invocationResults = new ArrayList<>();
 		for (DeviceDTO deviceDTO : governanceScope) {
-
 			String dynamicURL = new DefaultMappingModel(capaId,
 					deviceDTO.getId(), method, args).getMapping();
-			
 			Context procC = this.processContext.registerIfAbsent(procId);
-
 			Future<ResponseEntity<String>> r = new ProcessCapabilityInvocation(
 					dynamicURL, procC).queue();
-			
 			invocationResults.add(r);
-
+		}
 		LOGGER.info("Waiting for " + invocationResults.size() + " results!");
 		for (Future<ResponseEntity<String>> result : invocationResults) {
 			try {
 				String resultBody = result.get().getBody();
-				LOGGER.info("Got sync result " + resultBody);
-				response += resultBody+"<br/><br/>";
+				response += resultBody + "<br/><br/>";
 			} catch (Exception e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-
-		// One option is to collect all results and then return - logic the
-		// client will do this anyway - problem is it cant process results one
-		// by one
-		// Second option is to return one by one
-		// Last option is to return futures
-
 		return new ResponseEntity<String>(response, HttpStatus.OK);
 	}
 

@@ -3,7 +3,7 @@ package at.ac.tuwien.infosys.model.uncertain;
 import java.util.ArrayList;
 import java.util.List;
 
-import at.ac.tuwien.infosys.Main.Decison.DECISION;
+import at.ac.tuwien.infosys.RoughScopeManager.Decison.DECISION;
 
 public class TrainingSet20 {
 

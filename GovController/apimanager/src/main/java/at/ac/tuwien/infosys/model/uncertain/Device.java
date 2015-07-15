@@ -3,7 +3,7 @@ package at.ac.tuwien.infosys.model.uncertain;
 import java.util.HashMap;
 import java.util.Map;
 
-import at.ac.tuwien.infosys.Main.Decison.DECISION;
+import at.ac.tuwien.infosys.store.model.DeviceDTO.Decison.DECISION;
 
 public class Device {
 	
