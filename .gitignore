@@ -77,3 +77,7 @@ vendor/
 Demo-applications/ARMv5/sample-app/.settings/
 *.class
 Demo-applications/ARMv5/sample-server/.settings/
+
+ElasticityController/rSYBL-local-service-pom/rSYBL-local-service/src/resources/config.properties
+
+ElasticityController/rSYBL-control-service-pom/rSYBL-analysis-engine/nb-configuration.xml
